@@ -1,0 +1,26 @@
+# === Step 1: Build React app ===
+FROM node:18 as client-builder
+WORKDIR /app
+COPY client ./client
+WORKDIR /app/client
+RUN npm install && npm run build
+
+# === Step 2: Setup Express server ===
+FROM node:18
+WORKDIR /app
+
+# Copy only required files
+COPY package*.json ./
+RUN npm install
+
+# Copy server files
+COPY . .
+
+# Copy built React app from previous stage
+COPY --from=client-builder /app/client/build ./client/build
+
+# Expose port
+EXPOSE 5000
+
+# Start the server
+CMD ["node", "server.js"]
