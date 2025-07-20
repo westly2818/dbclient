@@ -17,13 +17,13 @@ exports.getCollections = async () => {
 
 exports.getData = async (collectionName, limit = 50, offset = 0) => {
     if (!db) throw new Error('Not connected to MongoDB');
-
-    return await db
-        .collection(collectionName)
-        .find({})
+    const collection = db.collection(collectionName);
+    const total = await collection.countDocuments({});
+    const data = await collection.find({})
         .skip(offset)
         .limit(limit)
         .toArray();
+    return { data, total };
 };
 
 exports.runQuery = async (collectionName, query = {}) => {
@@ -62,20 +62,35 @@ exports.runQuery = async (collectionName, query = {}) => {
         return acc;
     }, {});
 
-    return await db
-        .collection(collectionName)
-        .find(mongoFilter)
+    const collection = db.collection(collectionName);
+    const total = await collection.countDocuments(mongoFilter);
+    const data = await collection.find(mongoFilter)
         .sort(mongoSort)
         .skip(offset)
         .limit(limit)
         .toArray();
+    return { data, total };
 };
 
 exports.runMongoShell = async (command) => {
     if (!db) throw new Error('Not connected to MongoDB');
 
+    // Quick check for common shell syntax
+    if (/db\.[a-zA-Z0-9_]+\.find\(/.test(command)) {
+        throw new Error(
+            "Please use Node.js driver syntax: db.collection('COLLECTION_NAME').find({}).toArray()"
+        );
+    }
+
+    // If the command looks like a db.collection().find() or similar, auto-wrap with await if not present
+    let wrappedCommand = command.trim();
+    const needsAwait = /db\.collection\([^)]+\)\.(find|aggregate|countDocuments|distinct|findOne)\(/.test(wrappedCommand) && !/^await /.test(wrappedCommand) && !/^return /.test(wrappedCommand);
+    if (needsAwait) {
+        wrappedCommand = 'await ' + wrappedCommand;
+    }
+
     try {
-        const func = new Function('db', `"use strict"; return (async () => { ${command} })();`);
+        const func = new Function('db', `"use strict"; return (async () => { ${wrappedCommand} })();`);
         const result = await func(db);
         return result;
     } catch (err) {

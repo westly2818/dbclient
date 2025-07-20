@@ -32,11 +32,10 @@ router.get('/data', async (req, res) => {
     const offset = parseInt(req.query.offset) || 0;
 
     try {
-        const data = await getData(collection, limit, offset);
-        res.json(data);
+        const result = await getData(collection, limit, offset);
+        res.json(result);
     } catch (err) {
         console.log(err);
-
         res.status(500).json({ error: err.message });
     }
 });
@@ -44,8 +43,8 @@ router.get('/data', async (req, res) => {
 router.post('/query', async (req, res) => {
     try {
         const { collection, query } = req.body;
-        const data = await runQuery(collection, query);
-        res.json(data);
+        const result = await runQuery(collection, query);
+        res.json(result);
     } catch (err) {
         console.error('Mongo Query Error:', err);
         res.status(500).json({ error: err.message });

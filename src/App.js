@@ -18,6 +18,7 @@ import {
 
 } from './services/api';
 import './App.css';
+import CircularProgress from '@mui/material/CircularProgress';
 
 function App() {
   const [dbType, setDbType] = useState(null);
@@ -32,6 +33,8 @@ function App() {
   const [error, setError] = useState(null); // New error state
   // Helper to clear errors
   const clearError = () => setError(null);
+  const [showQueryBuilder, setShowQueryBuilder] = useState(false);
+  const [showShell, setShowShell] = useState(false);
 
   const fetchData = async (collectionOrTable, pg = page, lim = limit, query = queryOptions) => {
     clearError(); // Clear previous errors
@@ -51,8 +54,13 @@ function App() {
           : await getSQLData(collectionOrTable, lim, offset);
       }
 
-      setData(result.data);
-      setTotalRowCount(result.data.length || 0); // Ensure total is set, default to 0
+      if (dbType === 'mongo') {
+        setData(result.data);
+        setTotalRowCount(result.total || 0);
+      } else {
+        setData(result.data);
+        setTotalRowCount(result.data.length || 0);
+      }
     } catch (err) {
       console.error('Failed to fetch data:', err);
       setData([]);
@@ -265,7 +273,25 @@ function App() {
         <>
           <Sidebar items={collections} onSelect={handleSelect} selected={selected} />
 
-          <div style={{ flex: 1, padding: 20, overflow: 'auto' }}>
+          <div style={{ flex: 1, padding: 20, overflowX: 'hidden', boxSizing: 'border-box', maxWidth: '100%', position: 'relative' }}>
+            {/* Loader overlay for smooth tab switching */}
+            {loading && (
+              <div style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                width: '100%',
+                height: '100%',
+                background: 'rgba(255,255,255,0.6)',
+                zIndex: 10,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                transition: 'opacity 0.2s',
+              }}>
+                <CircularProgress size={48} thickness={4} style={{ color: '#6366f1' }} />
+              </div>
+            )}
             <h3>{dbType === 'mongo' ? 'Collection' : 'Table'}: {selected}</h3>
 
             {/* Display Loading and Error Messages */}
@@ -274,14 +300,94 @@ function App() {
 
             {selected && (
               <>
-                <QueryBuilder onRunQuery={handleRunQuery} />
-                {dbType === 'mongo' && <ShellQueryBox onRunShell={handleRunShellQuery} />}
-                <div style={{ marginBottom: 10 }}>
-                  <button onClick={() => exportData(data, 'csv')}>Export CSV</button>
-                  <button onClick={() => exportData(data, 'json')}>Export JSON</button>
-
+                {/* Toggle Buttons */}
+                <div style={{ display: 'flex', gap: 16, marginBottom: 24 }}>
+                  <button
+                    style={{
+                      padding: '12px 32px',
+                      borderRadius: 8,
+                      border: 'none',
+                      background: showQueryBuilder ? 'linear-gradient(90deg, #6366f1 0%, #60a5fa 100%)' : '#e0e7ff',
+                      color: showQueryBuilder ? 'white' : '#374151',
+                      fontWeight: 700,
+                      fontSize: 17,
+                      cursor: 'pointer',
+                      boxShadow: showQueryBuilder ? '0 2px 8px rgba(99,102,241,0.10)' : 'none',
+                      transition: 'background 0.2s',
+                    }}
+                    onClick={() => {
+                      setShowQueryBuilder((prev) => !prev);
+                      setShowShell(false);
+                    }}
+                  >
+                    Query Builder
+                  </button>
+                  {dbType === 'mongo' && (
+                    <button
+                      style={{
+                        padding: '12px 32px',
+                        borderRadius: 8,
+                        border: 'none',
+                        background: showShell ? 'linear-gradient(90deg, #6366f1 0%, #60a5fa 100%)' : '#e0e7ff',
+                        color: showShell ? 'white' : '#374151',
+                        fontWeight: 700,
+                        fontSize: 17,
+                        cursor: 'pointer',
+                        boxShadow: showShell ? '0 2px 8px rgba(99,102,241,0.10)' : 'none',
+                        transition: 'background 0.2s',
+                      }}
+                      onClick={() => {
+                        setShowShell((prev) => !prev);
+                        setShowQueryBuilder(false);
+                      }}
+                    >
+                      Shell
+                    </button>
+                  )}
                 </div>
-
+                {/* Show QueryBuilder or ShellQueryBox full width if toggled */}
+                {showQueryBuilder && (
+                  <QueryBuilder onRunQuery={handleRunQuery} columns={data && data.length > 0 ? Object.keys(data[0]) : []} />
+                )}
+                {showShell && dbType === 'mongo' && (
+                  <ShellQueryBox onRunShell={handleRunShellQuery} />
+                )}
+                <div style={{ marginBottom: 10, display: 'flex', gap: 12 }}>
+                  <button
+                    style={{
+                      padding: '10px 24px',
+                      borderRadius: 8,
+                      border: '1.5px solid #60a5fa',
+                      background: 'linear-gradient(90deg, #e0e7ff 0%, #bae6fd 100%)',
+                      color: '#2563eb',
+                      fontWeight: 700,
+                      fontSize: 13,
+                      cursor: 'pointer',
+                      boxShadow: '0 2px 8px rgba(96,165,250,0.10)',
+                      transition: 'background 0.2s',
+                    }}
+                    onClick={() => exportData(data, 'csv')}
+                  >
+                    Export CSV
+                  </button>
+                  <button
+                    style={{
+                      padding: '10px 24px',
+                      borderRadius: 8,
+                      border: '1.5px solid #60a5fa',
+                      background: 'linear-gradient(90deg, #e0e7ff 0%, #bae6fd 100%)',
+                      color: '#2563eb',
+                      fontWeight: 700,
+                      fontSize: 13,
+                      cursor: 'pointer',
+                      boxShadow: '0 2px 8px rgba(96,165,250,0.10)',
+                      transition: 'background 0.2s',
+                    }}
+                    onClick={() => exportData(data, 'json')}
+                  >
+                    Export JSON
+                  </button>
+                </div>
                 <DataViewer
                   data={data}
                   page={page}

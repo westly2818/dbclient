@@ -10,7 +10,7 @@ export const getMongoCollections = () =>
     axios.get(`${API_BASE}/mongo/collections`);
 
 export const getMongoData = (collection, limit = 25, offset = 0) =>
-    axios.get(`${API_BASE}/mongo/data`, { params: { collection, limit, offset } });
+    axios.get(`${API_BASE}/mongo/data`, { params: { collection, limit, offset } }).then(res => res.data);
 
 export const updateMongoData = (collection, query, update) =>
     axios.post(`${API_BASE}/mongo/update`, { collection, query, update });
@@ -23,7 +23,7 @@ export const uploadMongoData = (collection, documents) =>
 
 
 export const runMongoQuery = (collection, query) =>
-    axios.post(`${API_BASE}/mongo/query`, { collection, query });
+    axios.post(`${API_BASE}/mongo/query`, { collection, query }).then(res => res.data);
 
 export const connectSQL = (payload) =>
     axios.post(`${API_BASE}/mssql/connect`, payload);

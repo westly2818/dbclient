@@ -11,45 +11,63 @@ const ShellQueryBox = ({ onRunShell }) => {
     };
 
     return (
-        <div style={{ marginBottom: 24, display: 'flex', flexDirection: 'column' }}>
-            <h4 style={{ marginBottom: 8 }}>Shell Query (Raw)</h4>
+        <div style={{
+            background: 'linear-gradient(135deg, #e0e7ff 0%, #f8fafc 100%)',
+            borderRadius: 12,
+            boxShadow: '0 4px 24px 0 rgba(31, 38, 135, 0.10)',
+            padding: '32px 28px 24px 28px',
+            marginBottom: 32,
+            width: '96%',
+            fontFamily: 'Inter, Segoe UI, Arial, sans-serif',
+        }}>
+            <h3 style={{
+                marginBottom: 18,
+                fontWeight: 700,
+                fontSize: 22,
+                color: '#22223b',
+                letterSpacing: '-0.5px',
+                textAlign: 'left',
+            }}>Shell Query (Raw)</h3>
             <textarea
-                rows="5"
-                placeholder="e.g. db.test.updateMany({ age: { $gt: 30 } }, { $set: { active: true } })"
+                rows={6}
+                placeholder={"e.g. db.collection('test').find({}).toArray()"}
                 value={shellInput}
                 onChange={(e) => setShellInput(e.target.value)}
                 style={{
                     width: '100%',
-                    maxWidth: '800px',
-                    padding: '10px',
-                    fontSize: '14px',
-                    fontFamily: 'monospace',
-                    borderRadius: '6px',
-                    border: '1px solid #ccc',
+                    padding: '16px',
+                    fontSize: '16px',
+                    fontFamily: 'Fira Mono, monospace',
+                    borderRadius: '8px',
+                    border: '1.5px solid #d1d5db',
                     outline: 'none',
                     resize: 'vertical',
-                    boxShadow: 'none',
-                    transition: 'border-color 0.2s ease-in-out',
+                    background: '#f9fafb',
+                    color: '#22223b',
+                    marginBottom: 18,
+                    boxShadow: '0 1px 4px rgba(99,102,241,0.04)',
+                    transition: 'border-color 0.2s',
                 }}
-                onFocus={(e) => (e.target.style.borderColor = '#888')}
-                onBlur={(e) => (e.target.style.borderColor = '#ccc')}
+                onFocus={e => (e.target.style.borderColor = '#6366f1')}
+                onBlur={e => (e.target.style.borderColor = '#d1d5db')}
             />
             <button
                 onClick={handleSubmit}
                 style={{
-                    marginTop: 10,
-                    padding: '8px 16px',
-                    width: '150px',
-                    fontWeight: 'bold',
+                    padding: '14px 0',
+                    width: '180px',
+                    fontWeight: 700,
+                    fontSize: 13,
                     border: 'none',
-                    borderRadius: '4px',
-                    backgroundColor: '#1976d2',
-                    color: '#fff',
+                    borderRadius: 8,
+                    background: 'linear-gradient(90deg, #6366f1 0%, #60a5fa 100%)',
+                    color: 'white',
                     cursor: 'pointer',
-                    transition: 'background 0.3s',
+                    boxShadow: '0 2px 8px rgba(99,102,241,0.10)',
+                    transition: 'background 0.2s',
                 }}
-                onMouseOver={(e) => (e.target.style.backgroundColor = '#1565c0')}
-                onMouseOut={(e) => (e.target.style.backgroundColor = '#1976d2')}
+                onMouseOver={e => (e.target.style.background = '#6366f1')}
+                onMouseOut={e => (e.target.style.background = 'linear-gradient(90deg, #6366f1 0%, #60a5fa 100%)')}
             >
                 Run Raw Query
             </button>
