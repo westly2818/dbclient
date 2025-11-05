@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 
-const ShellQueryBox = ({ onRunShell }) => {
+const ShellQueryBox = ({ onRunShell, theme = 'light' }) => {
     const [shellInput, setShellInput] = useState('');
 
     const handleSubmit = () => {
@@ -12,13 +12,14 @@ const ShellQueryBox = ({ onRunShell }) => {
 
     return (
         <div style={{
-            background: 'linear-gradient(135deg, #e0e7ff 0%, #f8fafc 100%)',
+            background: theme === 'light' ? 'linear-gradient(135deg, #e0e7ff 0%, #f8fafc 100%)' : '#0b1220',
             borderRadius: 12,
-            boxShadow: '0 4px 24px 0 rgba(31, 38, 135, 0.10)',
+            boxShadow: theme === 'light' ? '0 4px 24px 0 rgba(31, 38, 135, 0.10)' : '0 4px 24px 0 rgba(2,6,23,0.6)',
             padding: '32px 28px 24px 28px',
             marginBottom: 32,
             width: '96%',
             fontFamily: 'Inter, Segoe UI, Arial, sans-serif',
+            color: theme === 'light' ? '#111827' : '#e5e7eb'
         }}>
             <h3 style={{
                 marginBottom: 18,

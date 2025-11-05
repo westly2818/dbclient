@@ -26,7 +26,8 @@ function App() {
   const [selected, setSelected] = useState(null);
   const [data, setData] = useState([]);
   const [page, setPage] = useState(1);
-  const [limit, setLimit] = useState(25);
+  const [pageSize, setPageSize] = useState(25); // UI rows per page (client-side)
+  const [dbLimit, setDbLimit] = useState(25); // Backend fetch size (database-wise)
   const [queryOptions, setQueryOptions] = useState(null);
   const [totalRowCount, setTotalRowCount] = useState(0); // State for total row count
   const [loading, setLoading] = useState(false); // New loading state
@@ -35,11 +36,15 @@ function App() {
   const clearError = () => setError(null);
   const [showQueryBuilder, setShowQueryBuilder] = useState(false);
   const [showShell, setShowShell] = useState(false);
+  const [dateColumns, setDateColumns] = useState([]);
+  const [theme, setTheme] = useState('light');
+  const toggleTheme = () => setTheme((t) => (t === 'light' ? 'dark' : 'light'));
 
-  const fetchData = async (collectionOrTable, pg = page, lim = limit, query = queryOptions) => {
+  const fetchData = async (collectionOrTable, pg = page, lim = dbLimit, query = queryOptions) => {
     clearError(); // Clear previous errors
     setLoading(true); // Set loading true
-    const offset = (pg - 1) * lim;
+    // Client-side pagination: always fetch first page of size 'lim'
+    const offset = 0;
 
     try {
       let result;
@@ -56,10 +61,27 @@ function App() {
 
       if (dbType === 'mongo') {
         setData(result.data);
-        setTotalRowCount(result.total || 0);
+        setTotalRowCount(result.total || result.data?.length || 0);
+        // derive date columns from sample data
+        const sample = (result.data && result.data[0]) ? result.data[0] : null;
+        if (sample) {
+          const cols = Object.keys(sample).filter((k) => {
+            const v = sample[k];
+            if (v == null) return false;
+            if (typeof v === 'string') {
+              const t = Date.parse(v);
+              return !isNaN(t);
+            }
+            return false;
+          });
+          setDateColumns(cols);
+        } else {
+          setDateColumns([]);
+        }
       } else {
         setData(result.data);
         setTotalRowCount(result.data.length || 0);
+        setDateColumns([]);
       }
     } catch (err) {
       console.error('Failed to fetch data:', err);
@@ -83,7 +105,7 @@ function App() {
       // Optionally fetch initial data for the first collection/table after connection
       if (items.data && items.data.length > 0) {
         setSelected(items.data[0]);
-        fetchData(items.data[0], 1, limit, null);
+        fetchData(items.data[0], 1, dbLimit, null);
       }
     } catch (error) {
       console.error('Failed to connect or fetch collections/tables:', error);
@@ -100,27 +122,30 @@ function App() {
     setSelected(name);
     setQueryOptions(null);
     setPage(1); // Reset page to 1 when a new collection/table is selected
-    await fetchData(name, 1, limit, null); // Ensure data is fetched for the new selection
+    await fetchData(name, 1, dbLimit, null); // Fetch using database-wise limit
   };
 
   const handlePageChange = (newPage) => {
     clearError();
     setPage(newPage);
-    fetchData(selected, newPage, limit, queryOptions);
   };
 
   const handleLimitChange = (newLimit) => {
     clearError();
-    setLimit(newLimit);
-    setPage(1); // Always reset to page 1 when limit changes
-    fetchData(selected, 1, newLimit, queryOptions);
+    setPageSize(newLimit);
+    setPage(1); // Reset to page 1 for UI pagination
   };
 
   const handleRunQuery = (query) => {
     clearError();
     setQueryOptions(query);
     setPage(1); // Reset page to 1 for new query
-    fetchData(selected, 1, limit, query);
+    if (query && typeof query.limit === 'number') {
+      setDbLimit(Number(query.limit));
+      fetchData(selected, 1, Number(query.limit), query);
+    } else {
+      fetchData(selected, 1, dbLimit, query);
+    }
   };
 
 
@@ -132,7 +157,7 @@ function App() {
       const response = await runMongoShell(shellString);
       alert('Query executed successfully: ' + JSON.stringify(response.data));
       // After running shell query, re-fetch data to reflect changes
-      fetchData(selected, page, limit, queryOptions);
+      fetchData(selected, page, dbLimit, queryOptions);
     } catch (err) {
       console.error('Shell query failed:', err);
       setError(`Shell query failed: ${err.message}`);
@@ -218,7 +243,7 @@ function App() {
       const collection = selected;
       if (dbType === 'mongo') {
         const response = await deleteMongoData(collection, ids);
-        await fetchData(selected, page, limit, queryOptions);
+        await fetchData(selected, page, dbLimit, queryOptions);
       } else {
         // SQL delete logic goes here.
         throw new Error("SQL delete is not implemented yet.");
@@ -256,7 +281,7 @@ function App() {
       }
 
       alert('Data imported successfully!');
-      fetchData(selected, page, limit, queryOptions); // Refresh data
+      fetchData(selected, page, dbLimit, queryOptions); // Refresh data
     } catch (err) {
       console.error('Import failed:', err);
       setError(`Import failed: ${err.message}`);
@@ -266,14 +291,23 @@ function App() {
   };
 
   return (
-    <div style={{ display: 'flex', height: '100vh', width: '100vw' }}>
-      {!dbType ? (
-        <ConnectionForm onConnect={handleConnect} />
-      ) : (
-        <>
-          <Sidebar items={collections} onSelect={handleSelect} selected={selected} />
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', width: '100vw', background: theme === 'light' ? '#ffffff' : '#0f172a', color: theme === 'light' ? '#111827' : '#e5e7eb' }}>
+      {/* Header */}
+      <div style={{ padding: '12px 20px', borderBottom: '1px solid ' + (theme === 'light' ? '#e5e7eb' : '#334155'), display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div style={{ fontWeight: 800, fontSize: 18, letterSpacing: 0.5 }}>dbclient</div>
+      </div>
 
-          <div style={{ flex: 1, padding: 20, overflowX: 'hidden', boxSizing: 'border-box', maxWidth: '100%', position: 'relative' }}>
+      {/* Main */}
+      <div style={{ display: 'flex', flex: 1, minHeight: 0 }}>
+        {!dbType ? (
+          <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <ConnectionForm onConnect={handleConnect} />
+          </div>
+        ) : (
+          <>
+            <Sidebar items={collections} onSelect={handleSelect} selected={selected} theme={theme} />
+
+            <div style={{ flex: 1, padding: 20, overflowX: 'hidden', boxSizing: 'border-box', maxWidth: '100%', position: 'relative' }}>
             {/* Loader overlay for smooth tab switching */}
             {loading && (
               <div style={{
@@ -301,7 +335,8 @@ function App() {
             {selected && (
               <>
                 {/* Toggle Buttons */}
-                <div style={{ display: 'flex', gap: 16, marginBottom: 24 }}>
+                <div style={{ display: 'flex', gap: 16, marginBottom: 24, alignItems: 'center', justifyContent: 'space-between' }}>
+                  <div style={{ display: 'flex', gap: 16 }}>
                   <button
                     style={{
                       padding: '12px 32px',
@@ -344,13 +379,28 @@ function App() {
                       Shell
                     </button>
                   )}
+                  </div>
+                  <button
+                    onClick={toggleTheme}
+                    style={{
+                      padding: '10px 20px',
+                      borderRadius: 8,
+                      border: '1.5px solid #6366f1',
+                      background: theme === 'light' ? '#eef2ff' : '#1f2937',
+                      color: theme === 'light' ? '#1f2937' : '#e5e7eb',
+                      fontWeight: 700,
+                      cursor: 'pointer'
+                    }}
+                  >
+                    {theme === 'light' ? 'Dark Mode' : 'Light Mode'}
+                  </button>
                 </div>
                 {/* Show QueryBuilder or ShellQueryBox full width if toggled */}
                 {showQueryBuilder && (
-                  <QueryBuilder onRunQuery={handleRunQuery} columns={data && data.length > 0 ? Object.keys(data[0]) : []} />
+                  <QueryBuilder onRunQuery={handleRunQuery} columns={data && data.length > 0 ? Object.keys(data[0]) : []} theme={theme} />
                 )}
                 {showShell && dbType === 'mongo' && (
-                  <ShellQueryBox onRunShell={handleRunShellQuery} />
+                  <ShellQueryBox onRunShell={handleRunShellQuery} theme={theme} />
                 )}
                 <div style={{ marginBottom: 10, display: 'flex', gap: 12 }}>
                   <button
@@ -391,18 +441,26 @@ function App() {
                 <DataViewer
                   data={data}
                   page={page}
-                  limit={limit}
+                  limit={pageSize}
                   totalRowCount={totalRowCount}
                   onPageChange={handlePageChange}
                   onLimitChange={handleLimitChange}
                   onRowUpdate={handleRowUpdate}
                   onRowsDelete={handleRowsDelete}
+                  theme={theme}
                 />
               </>
             )}
-          </div>
-        </>
-      )}
+            </div>
+          </>
+        )}
+      </div>
+
+      {/* Footer */}
+      <div style={{ padding: '10px 16px', borderTop: '1px solid ' + (theme === 'light' ? '#e5e7eb' : '#334155'), fontSize: 12, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <span>© {new Date().getFullYear()} dbclient</span>
+        <span style={{ opacity: 0.7 }}>Theme: {theme}</span>
+      </div>
     </div>
   );
 }

@@ -145,26 +145,33 @@ exports.getTableDataAdvanced = async (table, { limit = 50, offset = 0, query = {
             if (typeof filter === 'object' && filter !== null) {
                 // Structured filter: { "operator": "=", "value": "Haircap" }
                 const { operator, value } = filter;
+                const opUpper = String(operator).toUpperCase();
+                // Basic coercion for numeric comparisons
+                let coerced = value;
+                if ((filter.type === 'number' || ['>','>=','<','<='].includes(opUpper)) && value !== undefined && value !== null && value !== '') {
+                    const n = Number(value);
+                    if (!Number.isNaN(n)) coerced = n;
+                }
 
-                switch (operator.toUpperCase()) { // Convert to uppercase for case-insensitivity
+                switch (opUpper) { // Convert to uppercase for case-insensitivity
                     case '=':
-                        builder.where(column, value);
+                        builder.where(column, coerced);
                         break;
                     case '!=':
                     case '<>': // Both work for not equal
-                        builder.where(column, '!=', value);
+                        builder.where(column, '!=', coerced);
                         break;
                     case '>':
-                        builder.where(column, '>', value);
+                        builder.where(column, '>', coerced);
                         break;
                     case '>=':
-                        builder.where(column, '>=', value);
+                        builder.where(column, '>=', coerced);
                         break;
                     case '<':
-                        builder.where(column, '<', value);
+                        builder.where(column, '<', coerced);
                         break;
                     case '<=':
-                        builder.where(column, '<=', value);
+                        builder.where(column, '<=', coerced);
                         break;
                     case 'IN':
                         // Ensure value is an array for IN operator
@@ -186,6 +193,28 @@ exports.getTableDataAdvanced = async (table, { limit = 50, offset = 0, query = {
                         break;
                     case 'NOT LIKE':
                         builder.where(column, 'NOT LIKE', value);
+                        break;
+                    case 'BETWEEN':
+                        // Expecting { operator: 'BETWEEN', value: { from, to }, type: 'date' }
+                        if (value && typeof value === 'object' && value.from !== undefined && value.to !== undefined) {
+                            let fromVal = value.from;
+                            let toVal = value.to;
+                            const type = filter.type;
+                            if (type === 'date') {
+                                const fromDate = new Date(fromVal);
+                                const toDate = new Date(toVal);
+                                const isDateOnly = (s) => typeof s === 'string' && s.length === 10 && !s.includes('T');
+                                if (!isNaN(fromDate.getTime())) {
+                                    if (isDateOnly(fromVal)) fromDate.setHours(0,0,0,0);
+                                    fromVal = fromDate;
+                                }
+                                if (!isNaN(toDate.getTime())) {
+                                    if (isDateOnly(toVal)) toDate.setHours(23,59,59,999);
+                                    toVal = toDate;
+                                }
+                            }
+                            builder.whereBetween(column, [fromVal, toVal]);
+                        }
                         break;
                     case 'IS NULL':
                         builder.whereNull(column);

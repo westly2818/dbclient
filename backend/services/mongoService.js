@@ -34,26 +34,65 @@ exports.runQuery = async (collectionName, query = {}) => {
     // Convert custom query format into MongoDB's filter format
     const mongoFilter = {};
     for (const [field, cond] of Object.entries(where)) {
-        const { operator, value } = cond;
+        const { operator, value, type } = cond;
+
+        if (operator === 'BETWEEN' && type === 'date' && value && value.from && value.to) {
+            const rawFrom = value.from;
+            const rawTo = value.to;
+            const from = new Date(rawFrom);
+            const to = new Date(rawTo);
+            if (!isNaN(from.getTime()) && !isNaN(to.getTime())) {
+                // Expand to full-day bounds when inputs are date-only (YYYY-MM-DD)
+                const start = new Date(from);
+                const end = new Date(to);
+                const isDateOnlyFrom = typeof rawFrom === 'string' && rawFrom.length === 10 && !rawFrom.includes('T');
+                const isDateOnlyTo = typeof rawTo === 'string' && rawTo.length === 10 && !rawTo.includes('T');
+                if (isDateOnlyFrom) start.setHours(0, 0, 0, 0);
+                if (isDateOnlyTo) end.setHours(23, 59, 59, 999);
+
+                mongoFilter[field] = { $gte: start, $lte: end };
+                continue;
+            }
+        }
+
+        // Coerce types for single-value comparisons
+        let coerced = value;
+        const opUpper = String(operator || '').toUpperCase();
+        if (type === 'date' && value) {
+            const d = new Date(value);
+            if (!isNaN(d.getTime())) coerced = d;
+        } else if (
+            (type === 'number' || ['>','>=','<','<='].includes(opUpper) || (opUpper === '=' && typeof value === 'string' && /^-?\d+(?:\.\d+)?$/.test(value))) &&
+            value !== '' && value !== null && value !== undefined
+        ) {
+            const n = Number(value);
+            if (!Number.isNaN(n)) coerced = n;
+        }
 
         switch (operator) {
             case '=':
-                mongoFilter[field] = value;
+                mongoFilter[field] = coerced;
                 break;
             case '!=':
-                mongoFilter[field] = { $ne: value };
+                mongoFilter[field] = { $ne: coerced };
                 break;
             case '>':
-                mongoFilter[field] = { $gt: value };
+                mongoFilter[field] = { $gt: coerced };
                 break;
             case '<':
-                mongoFilter[field] = { $lt: value };
+                mongoFilter[field] = { $lt: coerced };
+                break;
+            case '>=':
+                mongoFilter[field] = { $gte: coerced };
+                break;
+            case '<=':
+                mongoFilter[field] = { $lte: coerced };
                 break;
             case 'LIKE':
                 mongoFilter[field] = { $regex: value, $options: 'i' };
                 break;
             default:
-                mongoFilter[field] = value;
+                mongoFilter[field] = coerced;
         }
     }
 

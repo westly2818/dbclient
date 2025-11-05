@@ -15,6 +15,7 @@ const DataViewer = ({
     onLimitChange,
     onRowUpdate,
     onRowsDelete,
+    theme = 'light',
 }) => {
     const [selectionModel, setSelectionModel] = useState([]);
     const [viewMode, setViewMode] = useState('table'); // 'table' or 'json'
@@ -79,7 +80,7 @@ const DataViewer = ({
                 minWidth: 150,
                 flex: 1,
                 sortable: true,
-                editable: true,
+                editable: false,
                 renderCell: (params) => (
                     <span style={{ whiteSpace: 'normal', wordWrap: 'break-word' }}>
                         {renderCellValue(params.value)}
@@ -128,14 +129,15 @@ const DataViewer = ({
     return (
         <Box sx={{
             width: '96%',
-            background: 'linear-gradient(135deg, #f8fafc 0%, #e0e7ff 100%)',
-            borderRadius: 6,
-            boxShadow: '0 8px 32px 0 rgba(31, 38, 135, 0.10)',
+            background: theme === 'light' ? '#f8fafc' : '#0b1220',
+            borderRadius: 10,
+            boxShadow: theme === 'light' ? '0 8px 24px rgba(31,38,135,0.10)' : '0 8px 24px rgba(2,6,23,0.6)',
             p: { xs: 2, sm: 4 },
             mb: 4,
             fontFamily: 'Inter, Segoe UI, Arial, sans-serif',
-            border: '1.5px solid #e0e7ef',
+            border: '1.5px solid ' + (theme === 'light' ? '#e0e7ef' : '#334155'),
             minHeight: 400,
+            overflow: 'hidden'
         }}>
             {/* Top Controls: View Toggle, Pagination, Limit */}
             <Box sx={{
@@ -145,15 +147,17 @@ const DataViewer = ({
                 alignItems: 'center',
                 mb: 3,
                 gap: 2,
-                background: 'rgba(255,255,255,0.7)',
-                borderRadius: 4,
-                boxShadow: '0 2px 8px rgba(99,102,241,0.06)',
+                background: theme === 'light' ? 'rgba(255,255,255,0.7)' : '#0f172a',
+                color: theme === 'light' ? '#111827' : '#e5e7eb',
+                border: '1px solid ' + (theme === 'light' ? '#e0e7ef' : '#334155'),
+                borderRadius: 8,
+                boxShadow: theme === 'light' ? '0 2px 8px rgba(99,102,241,0.06)' : '0 2px 8px rgba(2,6,23,0.6)',
                 p: 2,
                 '& button': { fontSize: 13 },
                 fontSize: 12,
             }}>
                 {/* Table/JSON View Toggle as pill */}
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, background: '#e0e7ff', borderRadius: 999, p: '2px 8px' }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, background: theme === 'light' ? '#e0e7ff' : '#1f2937', borderRadius: 999, p: '2px 8px' }}>
                     <Button
                         variant={viewMode === 'table' ? 'contained' : 'text'}
                         size="small"
@@ -285,30 +289,85 @@ const DataViewer = ({
                     rows={rows}
                     columns={columns}
                     paginationModel={{ page: page - 1, pageSize: limit }}
-                    paginationMode="server"
-                    rowCount={totalRowCount}
+                    // client-side pagination; backend limit controlled elsewhere
                     disableRowSelectionOnClick
+                    disableColumnMenu
                     rowHeight={40}
                     checkboxSelection
                     selectionModel={selectionModel}
                     onRowSelectionModelChange={(newSelection) => {
                         setSelectionModel(newSelection);
                     }}
-                    processRowUpdate={processRowUpdate}
-                    onProcessRowUpdateError={handleProcessRowUpdateError}
-                    pageSizeOptions={[10, 25, 50, 100]}
+                    // editing disabled
+                    pageSizeOptions={[10, 25, 50, 100,200]}
                     sx={{
-                        border: '1.5px solid #e0e7ef',
-                        borderRadius: 3,
-                        background: '#f9fafb',
+                        height: 'calc(100vh - 120px)',
+                        border: 'none',
+                        borderRadius: 0,
+                        background: theme === 'light' ? '#ffffff' : '#0b1220',
+                        color: theme === 'light' ? '#111827' : '#e5e7eb',
                         '& .MuiDataGrid-cell': {
                             whiteSpace: 'normal',
                             wordBreak: 'break-word',
                             lineHeight: '1.5rem',
+                            color: theme === 'light' ? '#111827' : '#e5e7eb'
+                        },
+                        '& .MuiDataGrid-columnHeaders': {
+                            background: theme === 'light' ? '#e8eefc' : '#0f172a',
+                            color: theme === 'light' ? '#111827' : '#e5e7eb',
+                            borderBottom: '1px solid ' + (theme === 'light' ? '#e0e7ef' : '#334155'),
+                            minHeight: 48,
+                            maxHeight: 56
+                        },
+                        '& .MuiDataGrid-columnHeader': {
+                            background: theme === 'light' ? '#e8eefc' : '#0f172a',
+                            color: theme === 'light' ? '#111827' : '#e5e7eb'
+                        },
+                        '& .MuiDataGrid-columnHeaderTitle': {
+                            fontWeight: 700,
+                            color: theme === 'light' ? '#1f2937' : '#e5e7eb'
+                        },
+                        '& .MuiDataGrid-columnHeaderTitleContainer': {
+                            color: theme === 'light' ? '#1f2937' : '#e5e7eb'
+                        },
+                        '& .MuiDataGrid-columnHeaderCheckbox .MuiSvgIcon-root': {
+                            color: theme === 'light' ? '#4b5563' : '#e5e7eb'
+                        },
+                        '& .MuiDataGrid-columnSeparator': {
+                            display: 'none'
+                        },
+                        '& .MuiDataGrid-virtualScroller': {
+                            background: theme === 'light' ? '#ffffff' : '#0b1220'
+                        },
+                        '& .MuiDataGrid-row:hover': {
+                            background: theme === 'light' ? '#f3f6ff' : '#111827'
+                        },
+                        '& .MuiDataGrid-row.Mui-selected': {
+                            background: theme === 'light' ? '#e0e7ff !important' : '#1f2937 !important'
+                        },
+                        '& .MuiDataGrid-row.Mui-selected:hover': {
+                            background: theme === 'light' ? '#dbeafe !important' : '#1e293b !important'
+                        },
+                        '& .MuiDataGrid-withBorderColor': {
+                            borderColor: theme === 'light' ? '#e0e7ef' : '#334155'
+                        },
+                        '& .MuiDataGrid-footerContainer': {
+                            background: theme === 'light' ? '#f8fafc' : '#0f172a',
+                            color: theme === 'light' ? '#111827' : '#e5e7eb',
+                            borderTop: '1px solid ' + (theme === 'light' ? '#e0e7ef' : '#334155')
+                        },
+                        '& .MuiSvgIcon-root': {
+                            color: theme === 'light' ? undefined : '#e5e7eb'
+                        },
+                        '& .MuiCheckbox-root': {
+                            color: theme === 'light' ? undefined : '#94a3b8'
+                        },
+                        '& .MuiDataGrid-cell:focus, & .MuiDataGrid-cell:focus-within': {
+                            outline: 'none'
                         },
                         fontFamily: 'Inter, sans-serif',
                         fontSize: 15,
-                        boxShadow: '0 2px 8px rgba(99,102,241,0.04)',
+                        boxShadow: theme === 'light' ? '0 2px 8px rgba(99,102,241,0.04)' : '0 2px 8px rgba(2,6,23,0.6)',
                     }}
                     slots={{
                         noRowsOverlay: () => (
