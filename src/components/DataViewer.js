@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { DataGrid } from '@mui/x-data-grid';
+import { DataGrid, GridToolbar } from '@mui/x-data-grid';
 import { Box, Select, MenuItem, Button, Typography, Switch, FormControlLabel, IconButton, TextField } from '@mui/material';
 import EditIcon from '@mui/icons-material/Edit';
 import SaveIcon from '@mui/icons-material/Save';
@@ -16,6 +16,7 @@ const DataViewer = ({
     onRowUpdate,
     onRowsDelete,
     theme = 'light',
+    storageKey = null,
 }) => {
     const [selectionModel, setSelectionModel] = useState([]);
     const [viewMode, setViewMode] = useState('table'); // 'table' or 'json'
@@ -23,6 +24,24 @@ const DataViewer = ({
     const [editIndex, setEditIndex] = useState(null);
     const [editJson, setEditJson] = useState('');
     const [editError, setEditError] = useState('');
+
+    const [columnVisibilityModel, setColumnVisibilityModel] = useState({});
+
+    // Load visibility from local storage when storageKey changes
+    useEffect(() => {
+        if (storageKey) {
+            try {
+                const saved = localStorage.getItem(storageKey);
+                if (saved) {
+                    setColumnVisibilityModel(JSON.parse(saved));
+                } else {
+                    setColumnVisibilityModel({});
+                }
+            } catch (e) {
+                console.error("Failed to load column visibility", e);
+            }
+        }
+    }, [storageKey]);
 
     // Reset edit state when data, page, or limit changes
     useEffect(() => {
@@ -98,7 +117,7 @@ const DataViewer = ({
     const processRowUpdate = async (newRow, oldRow) => {
         try {
             if (onRowUpdate) {
-                const updatedRow = await onRowUpdate(newRow);
+                const updatedRow = await onRowUpdate(newRow, oldRow);
                 return updatedRow;
             }
             return oldRow;
@@ -291,17 +310,24 @@ const DataViewer = ({
                     paginationModel={{ page: page - 1, pageSize: limit }}
                     // client-side pagination; backend limit controlled elsewhere
                     disableRowSelectionOnClick
-                    disableColumnMenu
+                    // disableColumnMenu // enable column menu
                     rowHeight={40}
                     checkboxSelection
                     selectionModel={selectionModel}
                     onRowSelectionModelChange={(newSelection) => {
                         setSelectionModel(newSelection);
                     }}
+                    columnVisibilityModel={columnVisibilityModel}
+                    onColumnVisibilityModelChange={(newModel) => {
+                        setColumnVisibilityModel(newModel);
+                        if (storageKey) {
+                            localStorage.setItem(storageKey, JSON.stringify(newModel));
+                        }
+                    }}
                     // editing disabled
-                    pageSizeOptions={[10, 25, 50, 100,200]}
+                    pageSizeOptions={[10, 25, 50, 100, 200]}
                     sx={{
-                        height: 'calc(100vh - 120px)',
+                        height: '55vh',
                         border: 'none',
                         borderRadius: 0,
                         background: theme === 'light' ? '#ffffff' : '#0b1220',
@@ -370,6 +396,7 @@ const DataViewer = ({
                         boxShadow: theme === 'light' ? '0 2px 8px rgba(99,102,241,0.04)' : '0 2px 8px rgba(2,6,23,0.6)',
                     }}
                     slots={{
+                        toolbar: GridToolbar,
                         noRowsOverlay: () => (
                             <Typography sx={{ p: 2, color: 'gray' }}>
                                 No data to display.
@@ -449,7 +476,7 @@ const DataViewer = ({
                                                     try {
                                                         const parsed = JSON.parse(editJson);
                                                         setEditError('');
-                                                        await onRowUpdate(parsed);
+                                                        await onRowUpdate(parsed, data[editIndex]);
                                                         setEditIndex(null);
                                                     } catch (err) {
                                                         setEditError('Invalid JSON: ' + err.message);

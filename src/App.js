@@ -201,18 +201,35 @@ function App() {
     document.body.removeChild(a);
   };
 
-  const handleRowUpdate = async (updatedRow) => {
+  const handleRowUpdate = async (updatedRow, originalRow) => {
     clearError();
     setLoading(true);
     try {
       const collection = selected;
       const query = { _id: updatedRow._id };
-      const { _id, ...updateFields } = updatedRow;
+
+      // Calculate Diff
+      const changes = {};
+      if (originalRow) {
+        Object.keys(updatedRow).forEach(key => {
+          if (key !== '_id' && JSON.stringify(updatedRow[key]) !== JSON.stringify(originalRow[key])) {
+            changes[key] = updatedRow[key];
+          }
+        });
+      } else {
+        // Fallback if no original row provided
+        const { _id, ...rest } = updatedRow;
+        Object.assign(changes, rest);
+      }
+
+      if (Object.keys(changes).length === 0) {
+        setLoading(false);
+        return updatedRow;
+      }
 
       if (dbType === 'mongo') {
-        // Assuming updateMongoData returns a response object with a success indicator
-        const response = await updateMongoData(collection, query, updateFields);
-        if (!response || response.success === false) { // Check for a specific success flag from your API
+        const response = await updateMongoData(collection, query, changes);
+        if (!response || response.success === false) {
           throw new Error(response?.message || 'MongoDB update failed unexpectedly.');
         }
       } else {
@@ -308,149 +325,150 @@ function App() {
             <Sidebar items={collections} onSelect={handleSelect} selected={selected} theme={theme} />
 
             <div style={{ flex: 1, padding: 20, overflowX: 'hidden', boxSizing: 'border-box', maxWidth: '100%', position: 'relative' }}>
-            {/* Loader overlay for smooth tab switching */}
-            {loading && (
-              <div style={{
-                position: 'absolute',
-                top: 0,
-                left: 0,
-                width: '100%',
-                height: '100%',
-                background: 'rgba(255,255,255,0.6)',
-                zIndex: 10,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                transition: 'opacity 0.2s',
-              }}>
-                <CircularProgress size={48} thickness={4} style={{ color: '#6366f1' }} />
-              </div>
-            )}
-            <h3>{dbType === 'mongo' ? 'Collection' : 'Table'}: {selected}</h3>
+              {/* Loader overlay for smooth tab switching */}
+              {loading && (
+                <div style={{
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  width: '100%',
+                  height: '100%',
+                  background: 'rgba(255,255,255,0.6)',
+                  zIndex: 10,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  transition: 'opacity 0.2s',
+                }}>
+                  <CircularProgress size={48} thickness={4} style={{ color: '#6366f1' }} />
+                </div>
+              )}
+              <h3>{dbType === 'mongo' ? 'Collection' : 'Table'}: {selected}</h3>
 
-            {/* Display Loading and Error Messages */}
-            {loading && <div style={{ color: 'blue', marginBottom: '10px' }}>Loading...</div>}
-            {error && <div style={{ color: 'red', marginBottom: '10px' }}>Error: {error}</div>}
+              {/* Display Loading and Error Messages */}
+              {loading && <div style={{ color: 'blue', marginBottom: '10px' }}>Loading...</div>}
+              {error && <div style={{ color: 'red', marginBottom: '10px' }}>Error: {error}</div>}
 
-            {selected && (
-              <>
-                {/* Toggle Buttons */}
-                <div style={{ display: 'flex', gap: 16, marginBottom: 24, alignItems: 'center', justifyContent: 'space-between' }}>
-                  <div style={{ display: 'flex', gap: 16 }}>
-                  <button
-                    style={{
-                      padding: '12px 32px',
-                      borderRadius: 8,
-                      border: 'none',
-                      background: showQueryBuilder ? 'linear-gradient(90deg, #6366f1 0%, #60a5fa 100%)' : '#e0e7ff',
-                      color: showQueryBuilder ? 'white' : '#374151',
-                      fontWeight: 700,
-                      fontSize: 17,
-                      cursor: 'pointer',
-                      boxShadow: showQueryBuilder ? '0 2px 8px rgba(99,102,241,0.10)' : 'none',
-                      transition: 'background 0.2s',
-                    }}
-                    onClick={() => {
-                      setShowQueryBuilder((prev) => !prev);
-                      setShowShell(false);
-                    }}
-                  >
-                    Query Builder
-                  </button>
-                  {dbType === 'mongo' && (
+              {selected && (
+                <>
+                  {/* Toggle Buttons */}
+                  <div style={{ display: 'flex', gap: 16, marginBottom: 24, alignItems: 'center', justifyContent: 'space-between' }}>
+                    <div style={{ display: 'flex', gap: 16 }}>
+                      <button
+                        style={{
+                          padding: '12px 32px',
+                          borderRadius: 8,
+                          border: 'none',
+                          background: showQueryBuilder ? 'linear-gradient(90deg, #6366f1 0%, #60a5fa 100%)' : '#e0e7ff',
+                          color: showQueryBuilder ? 'white' : '#374151',
+                          fontWeight: 700,
+                          fontSize: 17,
+                          cursor: 'pointer',
+                          boxShadow: showQueryBuilder ? '0 2px 8px rgba(99,102,241,0.10)' : 'none',
+                          transition: 'background 0.2s',
+                        }}
+                        onClick={() => {
+                          setShowQueryBuilder((prev) => !prev);
+                          setShowShell(false);
+                        }}
+                      >
+                        Query Builder
+                      </button>
+                      {dbType === 'mongo' && (
+                        <button
+                          style={{
+                            padding: '12px 32px',
+                            borderRadius: 8,
+                            border: 'none',
+                            background: showShell ? 'linear-gradient(90deg, #6366f1 0%, #60a5fa 100%)' : '#e0e7ff',
+                            color: showShell ? 'white' : '#374151',
+                            fontWeight: 700,
+                            fontSize: 17,
+                            cursor: 'pointer',
+                            boxShadow: showShell ? '0 2px 8px rgba(99,102,241,0.10)' : 'none',
+                            transition: 'background 0.2s',
+                          }}
+                          onClick={() => {
+                            setShowShell((prev) => !prev);
+                            setShowQueryBuilder(false);
+                          }}
+                        >
+                          Shell
+                        </button>
+                      )}
+                    </div>
                     <button
+                      onClick={toggleTheme}
                       style={{
-                        padding: '12px 32px',
+                        padding: '10px 20px',
                         borderRadius: 8,
-                        border: 'none',
-                        background: showShell ? 'linear-gradient(90deg, #6366f1 0%, #60a5fa 100%)' : '#e0e7ff',
-                        color: showShell ? 'white' : '#374151',
+                        border: '1.5px solid #6366f1',
+                        background: theme === 'light' ? '#eef2ff' : '#1f2937',
+                        color: theme === 'light' ? '#1f2937' : '#e5e7eb',
                         fontWeight: 700,
-                        fontSize: 17,
-                        cursor: 'pointer',
-                        boxShadow: showShell ? '0 2px 8px rgba(99,102,241,0.10)' : 'none',
-                        transition: 'background 0.2s',
-                      }}
-                      onClick={() => {
-                        setShowShell((prev) => !prev);
-                        setShowQueryBuilder(false);
+                        cursor: 'pointer'
                       }}
                     >
-                      Shell
+                      {theme === 'light' ? 'Dark Mode' : 'Light Mode'}
                     </button>
-                  )}
                   </div>
-                  <button
-                    onClick={toggleTheme}
-                    style={{
-                      padding: '10px 20px',
-                      borderRadius: 8,
-                      border: '1.5px solid #6366f1',
-                      background: theme === 'light' ? '#eef2ff' : '#1f2937',
-                      color: theme === 'light' ? '#1f2937' : '#e5e7eb',
-                      fontWeight: 700,
-                      cursor: 'pointer'
-                    }}
-                  >
-                    {theme === 'light' ? 'Dark Mode' : 'Light Mode'}
-                  </button>
-                </div>
-                {/* Show QueryBuilder or ShellQueryBox full width if toggled */}
-                {showQueryBuilder && (
-                  <QueryBuilder onRunQuery={handleRunQuery} columns={data && data.length > 0 ? Object.keys(data[0]) : []} theme={theme} />
-                )}
-                {showShell && dbType === 'mongo' && (
-                  <ShellQueryBox onRunShell={handleRunShellQuery} theme={theme} />
-                )}
-                <div style={{ marginBottom: 10, display: 'flex', gap: 12 }}>
-                  <button
-                    style={{
-                      padding: '10px 24px',
-                      borderRadius: 8,
-                      border: '1.5px solid #60a5fa',
-                      background: 'linear-gradient(90deg, #e0e7ff 0%, #bae6fd 100%)',
-                      color: '#2563eb',
-                      fontWeight: 700,
-                      fontSize: 13,
-                      cursor: 'pointer',
-                      boxShadow: '0 2px 8px rgba(96,165,250,0.10)',
-                      transition: 'background 0.2s',
-                    }}
-                    onClick={() => exportData(data, 'csv')}
-                  >
-                    Export CSV
-                  </button>
-                  <button
-                    style={{
-                      padding: '10px 24px',
-                      borderRadius: 8,
-                      border: '1.5px solid #60a5fa',
-                      background: 'linear-gradient(90deg, #e0e7ff 0%, #bae6fd 100%)',
-                      color: '#2563eb',
-                      fontWeight: 700,
-                      fontSize: 13,
-                      cursor: 'pointer',
-                      boxShadow: '0 2px 8px rgba(96,165,250,0.10)',
-                      transition: 'background 0.2s',
-                    }}
-                    onClick={() => exportData(data, 'json')}
-                  >
-                    Export JSON
-                  </button>
-                </div>
-                <DataViewer
-                  data={data}
-                  page={page}
-                  limit={pageSize}
-                  totalRowCount={totalRowCount}
-                  onPageChange={handlePageChange}
-                  onLimitChange={handleLimitChange}
-                  onRowUpdate={handleRowUpdate}
-                  onRowsDelete={handleRowsDelete}
-                  theme={theme}
-                />
-              </>
-            )}
+                  {/* Show QueryBuilder or ShellQueryBox full width if toggled */}
+                  {showQueryBuilder && (
+                    <QueryBuilder onRunQuery={handleRunQuery} columns={data && data.length > 0 ? Object.keys(data[0]) : []} theme={theme} />
+                  )}
+                  {showShell && dbType === 'mongo' && (
+                    <ShellQueryBox onRunShell={handleRunShellQuery} theme={theme} />
+                  )}
+                  <div style={{ marginBottom: 10, display: 'flex', gap: 12 }}>
+                    <button
+                      style={{
+                        padding: '10px 24px',
+                        borderRadius: 8,
+                        border: '1.5px solid #60a5fa',
+                        background: 'linear-gradient(90deg, #e0e7ff 0%, #bae6fd 100%)',
+                        color: '#2563eb',
+                        fontWeight: 700,
+                        fontSize: 13,
+                        cursor: 'pointer',
+                        boxShadow: '0 2px 8px rgba(96,165,250,0.10)',
+                        transition: 'background 0.2s',
+                      }}
+                      onClick={() => exportData(data, 'csv')}
+                    >
+                      Export CSV
+                    </button>
+                    <button
+                      style={{
+                        padding: '10px 24px',
+                        borderRadius: 8,
+                        border: '1.5px solid #60a5fa',
+                        background: 'linear-gradient(90deg, #e0e7ff 0%, #bae6fd 100%)',
+                        color: '#2563eb',
+                        fontWeight: 700,
+                        fontSize: 13,
+                        cursor: 'pointer',
+                        boxShadow: '0 2px 8px rgba(96,165,250,0.10)',
+                        transition: 'background 0.2s',
+                      }}
+                      onClick={() => exportData(data, 'json')}
+                    >
+                      Export JSON
+                    </button>
+                  </div>
+                  <DataViewer
+                    data={data}
+                    page={page}
+                    limit={pageSize}
+                    totalRowCount={totalRowCount}
+                    onPageChange={handlePageChange}
+                    onLimitChange={handleLimitChange}
+                    onRowUpdate={handleRowUpdate}
+                    onRowsDelete={handleRowsDelete}
+                    theme={theme}
+                    storageKey={dbType && selected ? `dbclient_cols_${dbType}_${selected}` : null}
+                  />
+                </>
+              )}
             </div>
           </>
         )}
